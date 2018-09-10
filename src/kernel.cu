@@ -913,26 +913,28 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   //   are welcome to do a performance comparison.
   thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + (numObjects - 1), dev_thrust_particleArrayIndices);
   checkCUDAErrorWithLine("thrust sort_by_key failed!");
-    cudaDeviceSynchronize();
+
   // reset the grid start and end indices back to the default of -1
   kernResetIntBuffer << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_gridCellStartIndices, -1);
   checkCUDAErrorWithLine("kernResetIntBuffer failed!");
-    cudaDeviceSynchronize();
+
   kernResetIntBuffer << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_gridCellEndIndices, -1);
   checkCUDAErrorWithLine("kernResetIntBuffer failed!");
-    cudaDeviceSynchronize();
-    // - Naively unroll the loop for finding the start and end indices of each
+
+  cudaDeviceSynchronize();
+
+  // - Naively unroll the loop for finding the start and end indices of each
   //   cell's data pointers in the array of boid indices
   kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices,
     dev_gridCellStartIndices, dev_gridCellEndIndices);
   checkCUDAErrorWithLine("kernIdentifyCellStartEnd failed!");
-  cudaDeviceSynchronize();  
-
   
   // reshuffle all of the particle data
   kernShuffle << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_pos, 
     dev_shuffle_pos, dev_vel1, dev_shuffle_vel1, dev_vel2, dev_shuffle_vel2);
   checkCUDAErrorWithLine("kernShuffle failed!");
+
+  cudaDeviceSynchronize();
 
   // - Perform velocity updates using neighbor search
   kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount,
